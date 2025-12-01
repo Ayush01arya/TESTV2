@@ -6,8 +6,7 @@ from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, NextPageTemplate, Table, \
-    TableStyle
+from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, NextPageTemplate, Table, TableStyle
 from reportlab.lib.utils import ImageReader
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.barcharts import VerticalBarChart
@@ -18,7 +17,6 @@ app = Flask(__name__)
 
 # --- CONFIGURATION ---
 TEMPLATE_PATH = "template.png"
-# Use a default if not provided, or handle in the drawing function
 PHOTO_URL_DEFAULT = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 FONT_PATH_REGULAR = "IBMPlexSansDevanagari-Regular.ttf"
 FONT_NAME_REGULAR = "IBMPlexSansDevanagari-Regular"
@@ -32,7 +30,7 @@ BOX_TOP_MARGIN = 302
 BOX_BOTTOM_Y = PAGE_HEIGHT - BOX_TOP_MARGIN - BOX_HEIGHT
 
 
-# --- HELPER FUNCTIONS (Refactored from your script) ---
+# --- HELPER FUNCTIONS ---
 
 def register_custom_fonts():
     """Registers the custom font if the file exists."""
@@ -48,7 +46,6 @@ def register_custom_fonts():
 
 def parse_full_report(text):
     """Parses the text into structured Q&A and remaining text."""
-    # Regex looks for Question -> Score -> Comment blocks
     qa_pattern = r"Question:\s*(.+?)\s*\n\s*Score:\s*(\d+)\s*\n\s*Comment:\s*(.+?)(?=\n\s*Question:|\n\s*[0-9]+\.|\Z)"
     matches = re.findall(qa_pattern, text, re.DOTALL | re.IGNORECASE)
 
@@ -155,51 +152,74 @@ def draw_first_page_bg(canvas, doc):
         except:
             pass
 
-            # 2. Fonts
+    # 2. Font Detection
     has_custom_font = register_custom_fonts()
     if has_custom_font:
+        # Use IBM Plex Sans Devanagari for EVERYTHING
         main_font = FONT_NAME_REGULAR
         name_font = FONT_NAME_REGULAR
     else:
+        # Fallback
         main_font = "Helvetica"
         name_font = "Helvetica-Bold"
 
     data = doc.candidate_data
 
-    # 3. Text Details
+    # 3. Candidate Details (White Text)
     canvas.setFillColor(colors.white)
 
+    # Name (x=43, y=125 from top)
     canvas.setFont(name_font, 14)
     name_y_rl = PAGE_HEIGHT - 125 - 12
     canvas.drawString(43, name_y_rl, str(data.get('candidate_name', '')))
 
+    # Role (x=43, y=147 from top)
     canvas.setFont(main_font, 11)
     role_y_rl = PAGE_HEIGHT - 147 - 10
     canvas.drawString(43, role_y_rl, str(data.get('candidate_position', '')))
 
+    # Date (x=43, y=165 from top)
     canvas.setFont(main_font, 10)
     date_y_rl = PAGE_HEIGHT - 165 - 10
     canvas.drawString(43, date_y_rl, str(data.get('date', '')))
 
+    # ID (x=43, y=180 from top)
     id_y_rl = PAGE_HEIGHT - 180 - 10
-    canvas.drawString(43, id_y_rl, f"ID: {data.get('interview_id', '')}")
+    canvas.drawString(43, id_y_rl, f": {data.get('interview_id', '')}")
 
-    # 4. Photo
-    img_x = PAGE_WIDTH - 120
-    img_y = PAGE_HEIGHT - 120
-    img_size = 80
+    # 4. Photo Logic (Fixed Coordinates & Rounded Rect)
+    # x=465, y=108 (from top), w=84, h=91, radius=5
+    img_x = 465
+    img_w = 84
+    img_h = 91
+    img_y_top = 108
+    img_y_rl = PAGE_HEIGHT - img_y_top - img_h # Convert to bottom-up
+    radius = 5
+    
     try:
         # Use provided URL or Default
         p_url = data.get('photo_url', PHOTO_URL_DEFAULT)
         if not p_url: p_url = PHOTO_URL_DEFAULT
 
         img = ImageReader(p_url)
+        
+        # Save State for Clipping
+        canvas.saveState()
+        
+        # Create Rounded Rect Path
         path = canvas.beginPath()
-        path.circle(img_x + (img_size / 2), img_y + (img_size / 2), img_size / 2)
+        path.roundRect(img_x, img_y_rl, img_w, img_h, radius)
+        
+        # Apply Clip
         canvas.clipPath(path, stroke=0)
-        canvas.drawImage(img, img_x, img_y, width=img_size, height=img_size, mask='auto')
-    except:
-        pass
+        
+        # Draw Image
+        canvas.drawImage(img, img_x, img_y_rl, width=img_w, height=img_h)
+        
+        # Restore State (removes clip for next operations)
+        canvas.restoreState()
+    except Exception as e:
+        print(f"Error drawing image: {e}")
 
     canvas.restoreState()
 
@@ -303,5 +323,4 @@ def generate_report_api():
 
 
 if __name__ == '__main__':
-    # Run on 0.0.0.0 to be accessible externally (e.g., from n8n)
     app.run(host='0.0.0.0', port=5000, debug=True)
