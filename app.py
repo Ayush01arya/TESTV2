@@ -18,6 +18,8 @@ app = Flask(__name__)
 # --- CONFIGURATION ---
 TEMPLATE_PATH = "template.png"
 PHOTO_URL_DEFAULT = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+WATERMARK_URL = "https://github.com/Ayush01arya/TEST/raw/main/Potentiam_Logo-removebg-preview1.png"
+
 FONT_PATH_REGULAR = "IBMPlexSansDevanagari-Regular.ttf"
 FONT_NAME_REGULAR = "IBMPlexSansDevanagari-Regular"
 
@@ -229,6 +231,33 @@ def draw_first_page_bg(canvas, doc):
 
 
 def draw_later_pages_bg(canvas, doc):
+    """Background for Page 2+. Includes 40% visible Watermark and Footer."""
+    
+    # --- 1. Watermark Logic ---
+    canvas.saveState()
+    try:
+        logo = ImageReader(WATERMARK_URL)
+        iw, ih = logo.getSize()
+        
+        # Scale to 50% of page width, maintaining aspect ratio
+        aspect = ih / float(iw)
+        display_width = PAGE_WIDTH * 0.5
+        display_height = display_width * aspect
+        
+        # Center Position
+        x_pos = (PAGE_WIDTH - display_width) / 2
+        y_pos = (PAGE_HEIGHT - display_height) / 2
+        
+        # Set Visibility to 40% (0.4 Alpha)
+        canvas.setFillAlpha(0.4)
+        canvas.setStrokeAlpha(0.4)
+        
+        canvas.drawImage(logo, x_pos, y_pos, width=display_width, height=display_height, mask='auto')
+    except Exception as e:
+        print(f"Watermark Error: {e}")
+    canvas.restoreState()
+
+    # --- 2. Footer Logic ---
     canvas.saveState()
     canvas.setFont("Helvetica", 9)
     canvas.setFillColor(colors.black)
