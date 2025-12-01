@@ -183,7 +183,7 @@ def draw_first_page_bg(canvas, doc):
 
     # ID (x=43, y=180 from top)
     id_y_rl = PAGE_HEIGHT - 180 - 10
-    canvas.drawString(43, id_y_rl, f": {data.get('interview_id', '')}")
+    canvas.drawString(43, id_y_rl, f"{data.get('interview_id', '')}")
 
     # 4. Photo Logic (Fixed Coordinates & Rounded Rect)
     # x=465, y=108 (from top), w=84, h=91, radius=5
@@ -328,3 +328,4 @@ def generate_report_api():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+
