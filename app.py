@@ -155,11 +155,9 @@ def draw_first_page_bg(canvas, doc):
     # 2. Font Detection
     has_custom_font = register_custom_fonts()
     if has_custom_font:
-        # Use IBM Plex Sans Devanagari for EVERYTHING
         main_font = FONT_NAME_REGULAR
         name_font = FONT_NAME_REGULAR
     else:
-        # Fallback
         main_font = "Helvetica"
         name_font = "Helvetica-Bold"
 
@@ -193,33 +191,39 @@ def draw_first_page_bg(canvas, doc):
     img_w = 84
     img_h = 91
     img_y_top = 108
-    img_y_rl = PAGE_HEIGHT - img_y_top - img_h # Convert to bottom-up
+    img_y_rl = PAGE_HEIGHT - img_y_top - img_h
     radius = 5
     
-    try:
-        # Use provided URL or Default
-        p_url = data.get('photo_url', PHOTO_URL_DEFAULT)
-        if not p_url: p_url = PHOTO_URL_DEFAULT
+    # Logic: User URL -> Default URL -> None
+    user_photo = data.get('photo_url', None)
+    image_to_draw = None
+    
+    # Try User Photo first
+    if user_photo:
+        try:
+            image_to_draw = ImageReader(user_photo)
+        except Exception as e:
+            print(f"Failed to load user photo ({user_photo}): {e}")
+            image_to_draw = None
+            
+    # Fallback to Default if user photo failed or wasn't provided
+    if not image_to_draw and PHOTO_URL_DEFAULT:
+        try:
+            image_to_draw = ImageReader(PHOTO_URL_DEFAULT)
+        except Exception as e:
+            print(f"Failed to load default photo: {e}")
 
-        img = ImageReader(p_url)
-        
-        # Save State for Clipping
-        canvas.saveState()
-        
-        # Create Rounded Rect Path
-        path = canvas.beginPath()
-        path.roundRect(img_x, img_y_rl, img_w, img_h, radius)
-        
-        # Apply Clip
-        canvas.clipPath(path, stroke=0)
-        
-        # Draw Image
-        canvas.drawImage(img, img_x, img_y_rl, width=img_w, height=img_h)
-        
-        # Restore State (removes clip for next operations)
-        canvas.restoreState()
-    except Exception as e:
-        print(f"Error drawing image: {e}")
+    # Draw if we have an image
+    if image_to_draw:
+        try:
+            canvas.saveState()
+            path = canvas.beginPath()
+            path.roundRect(img_x, img_y_rl, img_w, img_h, radius)
+            canvas.clipPath(path, stroke=0)
+            canvas.drawImage(image_to_draw, img_x, img_y_rl, width=img_w, height=img_h)
+            canvas.restoreState()
+        except Exception as e:
+            print(f"Error drawing image on canvas: {e}")
 
     canvas.restoreState()
 
